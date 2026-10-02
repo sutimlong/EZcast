@@ -1,10 +1,9 @@
 import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Download, Upload, Save, FilePlus } from 'lucide-react';
 import { AppProvider, useAppContext } from './store/AppContext';
 import SchedulePage from './pages/SchedulePage';
 import ActorsPage from './pages/ActorsPage';
-import confetti from 'canvas-confetti';
 
 function TitleBar({ fileName }: { fileName: string }) {
   return (
