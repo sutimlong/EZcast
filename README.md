@@ -1,32 +1,34 @@
-# React + TypeScript + Vite
+# EZ Cast 🎬
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+EZ Cast 是一個專為影視劇組打造的「演員與服裝管理」及「拍攝場次排程」桌面應用程式。
 
-Currently, two official plugins are available:
+## ✨ 核心功能
+- **演員與服裝管理**：可建立多名演員、自訂演員職稱、為每個角色分配專屬服裝並上傳定妝照，系統更提供重複名稱的防呆檢查。
+- **拍攝場次排程**：以直覺的拖曳（Drag & Drop）方式輕鬆調度拍攝行程，並將演員與特定服裝指派到該場戲中。
+- **存檔與匯出**：所有的劇組資料都能儲存與匯出為 `.cast` 專案檔，方便隨時備份與跨裝置共享。
+- **趣味專屬彩蛋**：當您將角色職稱設定為「主演」、「主角」等相關詞彙時，會觸發專屬的金色尊榮外框與愛心飄升特效！
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🚀 技術架構
+本專案為跨平台桌面應用程式，採用以下技術堆疊：
+- **核心框架**: React 19 + TypeScript + Vite
+- **桌面應用打包**: Electron & Electron-builder
+- **UI 互動與拖曳**: dnd-kit (支援流暢的排序與拖曳)
+- **視覺特效**: canvas-confetti
 
-## React Compiler
+## 🛠️ 如何在本機執行與開發
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. **安裝相依套件**：
+   ```bash
+   npm install
+   ```
 
-## Expanding the Oxlint configuration
+2. **啟動開發者伺服器** (會同時開啟 Vite 網頁伺服器與 Electron 視窗)：
+   ```bash
+   npm run dev:app
+   ```
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+3. **打包發布版本** (Mac)：
+   ```bash
+   npm run build:app
+   ```
+   打包完成的檔案（包含 .app、.dmg、.zip）會產生在 `release/` 資料夾中。
