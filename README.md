@@ -30,9 +30,9 @@ EZ Cast 是一個專為影視劇組打造的「演員與服裝管理」及「拍
 1. 前往右側區塊或點擊連結進入 [Releases 頁面](https://github.com/sutimlong/ez-cast-app/releases)。
 2. 在最新的發布版本（通常標示為 **Latest**）下方，展開 **Assets** 區塊。
 3. 根據您的作業系統，點擊下載對應的安裝檔：
-   - **Windows 用戶**：下載結尾為 `.exe` 的安裝程式（例如 `EZ Cast Setup x.x.x.exe`）。
-   - **macOS 用戶**：下載結尾為 `.dmg` 的映像檔（例如 `EZ Cast-x.x.x.dmg`）或 `.zip` 壓縮檔。
+   - **macOS 用戶**：下載結尾為`.zip` 的壓縮檔。
 4. 下載完成後，雙擊開啟檔案並按照系統提示完成安裝，即可開始使用！
+5. 您也可以在同一個下載區塊下載檔名為`Wish_showcase.cast`的示範檔案，並且到應用程式中匯入得以展示示範。
 
 ---
 
