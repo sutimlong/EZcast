@@ -5,7 +5,7 @@ import { Plus, Trash2, Calendar, GripVertical, X } from 'lucide-react';
 import { useAppContext, type SceneActor, type ScheduleDay, type Scene } from '../store/AppContext';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import TextareaAutosize from 'react-textarea-autosize';
 
@@ -14,6 +14,9 @@ const SceneActorPill = ({ sa, scene, dayId, getActorLabel }: { sa: SceneActor, s
   const { updateScene, actors } = useAppContext();
   const [hovered, setHovered] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const uniqueId = `${sa.actorId}-${sa.costumeId}`;
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: uniqueId });
 
   const actor = actors.find(a => a.id === sa.actorId);
   const costume = actor?.costumes.find(c => c.id === sa.costumeId);
@@ -25,18 +28,32 @@ const SceneActorPill = ({ sa, scene, dayId, getActorLabel }: { sa: SceneActor, s
   };
   const isLeading = isLeadingRole(actor?.customTitle);
 
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : 1,
+    position: 'relative' as const,
+    display: 'inline-flex', 
+    alignItems: 'center', 
+    gap: 6, 
+    cursor: 'grab',
+    ...(isLeading ? { border: '1px solid #FFD700', boxShadow: '0 0 8px rgba(255, 215, 0, 0.4)', color: '#B8860B', background: 'rgba(255, 215, 0, 0.15)' } : {})
+  };
+
   return (
     <>
-      <span 
+      <div 
+        ref={setNodeRef}
+        {...attributes}
+        {...listeners}
         className="actor-pill" 
-        style={{ 
-          display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'all 0.2s', cursor: 'default',
-          ...(isLeading ? { border: '1px solid #FFD700', boxShadow: '0 0 8px rgba(255, 215, 0, 0.4)', color: '#B8860B', background: 'rgba(255, 215, 0, 0.15)' } : {})
-        }}
+        style={style}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
       >
+        <GripVertical size={14} style={{ opacity: 0.5, marginLeft: -4, marginRight: -4 }} />
         {getActorLabel(sa)}
         {hovered && (
           <span 
@@ -50,7 +67,7 @@ const SceneActorPill = ({ sa, scene, dayId, getActorLabel }: { sa: SceneActor, s
             <X size={10} />
           </span>
         )}
-      </span>
+      </div>
       {hovered && photoUrl && createPortal(
         <div style={{
           position: 'fixed',
@@ -175,9 +192,30 @@ const SortableScene = ({ scene, dayId, getActorLabel }: { scene: Scene, dayId: s
       </td>
       <td>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-          {scene.actors.map((sa, i) => (
-            <SceneActorPill key={i} sa={sa} scene={scene} dayId={dayId} getActorLabel={getActorLabel} />
-          ))}
+          <DndContext
+            sensors={useSensors(
+              useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+              useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+            )}
+            collisionDetection={closestCenter}
+            onDragEnd={(e) => {
+              const { active, over } = e;
+              if (active.id !== over?.id && over) {
+                const oldIndex = scene.actors.findIndex(sa => `${sa.actorId}-${sa.costumeId}` === active.id);
+                const newIndex = scene.actors.findIndex(sa => `${sa.actorId}-${sa.costumeId}` === over.id);
+                if (oldIndex !== -1 && newIndex !== -1) {
+                  const newActors = arrayMove(scene.actors, oldIndex, newIndex);
+                  updateScene(dayId, scene.id, { actors: newActors });
+                }
+              }
+            }}
+          >
+            <SortableContext items={scene.actors.map(sa => `${sa.actorId}-${sa.costumeId}`)} strategy={verticalListSortingStrategy}>
+              {scene.actors.map((sa) => (
+                <SceneActorPill key={`${sa.actorId}-${sa.costumeId}`} sa={sa} scene={scene} dayId={dayId} getActorLabel={getActorLabel} />
+              ))}
+            </SortableContext>
+          </DndContext>
           <div style={{ position: 'relative' }}>
             <button ref={buttonRef} className="btn btn-outline" style={{ padding: '4px 12px', fontSize: 12, borderRadius: 9999 }} onClick={toggleDropdown}>
               添加演員及服裝

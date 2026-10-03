@@ -1,7 +1,8 @@
 import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Download, Upload, Save, FilePlus } from 'lucide-react';
 import { AppProvider, useAppContext } from './store/AppContext';
+import { getRecentProjects, saveRecentProject, removeRecentProject, type RecentProject } from './store/recentProjects';
 import SchedulePage from './pages/SchedulePage';
 import ActorsPage from './pages/ActorsPage';
 
@@ -35,10 +36,18 @@ function AppContent() {
   const isActorsPage = location.pathname === '/actors';
 
   const [fileHandle, setFileHandle] = useState<any>(null);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
 
-  const handleNewFile = () => {
-    if (window.confirm('確定要建立新檔案嗎？這將會清除當前畫面上所有未儲存的資料。')) {
-      setMovieName('');
+  useEffect(() => {
+    if (!hasStarted) {
+      getRecentProjects().then(setRecentProjects);
+    }
+  }, [hasStarted]);
+
+  const handleNewFile = (forceNew = false) => {
+    if (forceNew || window.confirm('確定要建立新檔案嗎？這將會清除當前畫面上所有未儲存的資料。')) {
+      setMovieName('電影名稱');
       setActors([]);
       
       // Need a simple date string for today
@@ -69,6 +78,7 @@ function AppContent() {
       await writable.write(jsonString);
       await writable.close();
       setFileHandle(handle);
+      await saveRecentProject(movieName, handle);
       alert('匯出成功！');
     } catch (e) {
       console.error(e);
@@ -87,6 +97,7 @@ function AppContent() {
         const writable = await fileHandle.createWritable();
         await writable.write(jsonString);
         await writable.close();
+        await saveRecentProject(movieName, fileHandle);
         alert('儲存成功！已直接寫入原檔案。');
       } catch (e) {
         alert('儲存失敗，請嘗試使用「匯出」另存新檔。');
@@ -109,11 +120,89 @@ function AppContent() {
       if (data.actors) setActors(data.actors);
       if (data.scheduleDays) setScheduleDays(data.scheduleDays);
       setFileHandle(handle);
+      await saveRecentProject(data.movieName, handle);
       alert('匯入成功！後續點擊「儲存」將直接寫入此檔案。');
+      return true;
     } catch (error) {
       console.error(error);
+      return false;
     }
   };
+
+  if (!hasStarted) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--background)', zIndex: 100000 }}>
+        <TitleBar fileName="" />
+        <div className="glass-panel" style={{ padding: 48, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'center' }}>
+          <h1 style={{ fontSize: 32, fontWeight: 700, margin: 0, color: 'var(--primary-blue)' }}>歡迎使用 EZ Cast</h1>
+          <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: 16 }}>請選擇您要進行的操作</p>
+          <div style={{ display: 'flex', gap: 16, marginTop: 16 }}>
+            <button className="btn btn-primary" style={{ padding: '12px 24px', fontSize: 16 }} onClick={() => { handleNewFile(true); setHasStarted(true); }}>
+              <FilePlus size={20} style={{ marginRight: 8 }} /> 開啟新專案
+            </button>
+            <button className="btn btn-outline" style={{ padding: '12px 24px', fontSize: 16 }} onClick={async () => {
+              const success = await handleImport();
+              if (success) setHasStarted(true);
+            }}>
+              <Download size={20} style={{ marginRight: 8 }} /> 開啟專案.cast
+            </button>
+          </div>
+
+          {recentProjects.length > 0 && (
+            <div style={{ marginTop: 24, width: '100%', textAlign: 'left', background: 'rgba(255,255,255,0.4)', borderRadius: 8, padding: 16 }}>
+              <h3 style={{ fontSize: 16, margin: '0 0 12px 0', color: 'var(--text-secondary)' }}>最近開啟的專案</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {recentProjects.map(p => (
+                  <div 
+                    key={p.id} 
+                    style={{ padding: '12px 16px', background: 'var(--white)', borderRadius: 6, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-sm)' }}
+                    onClick={async () => {
+                      if (!p.fileHandle) {
+                        alert('檔案已遺失或被刪除');
+                        await removeRecentProject(p.id);
+                        setRecentProjects(prev => prev.filter(r => r.id !== p.id));
+                        return;
+                      }
+                      try {
+                        // Check if we have permission, if not, browser might ask
+                        const options = { mode: 'read' as const };
+                        if ((await p.fileHandle.queryPermission(options)) !== 'granted') {
+                          if ((await p.fileHandle.requestPermission(options)) !== 'granted') {
+                            throw new Error('Permission denied');
+                          }
+                        }
+                        
+                        const file = await p.fileHandle.getFile();
+                        const json = await file.text();
+                        const data = JSON.parse(json);
+                        
+                        if (data.movieName !== undefined) setMovieName(data.movieName);
+                        if (data.actors) setActors(data.actors);
+                        if (data.scheduleDays) setScheduleDays(data.scheduleDays);
+                        setFileHandle(p.fileHandle);
+                        await saveRecentProject(p.name, p.fileHandle);
+                        setHasStarted(true);
+                      } catch (e) {
+                        console.error(e);
+                        alert('檔案已遺失或被刪除');
+                        await removeRecentProject(p.id);
+                        setRecentProjects(prev => prev.filter(r => r.id !== p.id));
+                      }
+                    }}
+                  >
+                    <span style={{ fontWeight: 600 }}>{p.name}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                      {new Date(p.lastOpened).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-container" style={{ paddingTop: 38 }}>
@@ -139,7 +228,8 @@ function AppContent() {
                       margin: 0, 
                       color: 'inherit', 
                       width: 280,
-                      outline: 'none' 
+                      outline: 'none',
+                      textAlign: 'center'
                     }}
                     placeholder="請輸入電影名稱..."
                   />
@@ -150,7 +240,7 @@ function AppContent() {
                   <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: 14 }} onClick={handleLocalSave}>
                     <Save size={16} style={{ marginRight: 6 }} /> 儲存
                   </button>
-                  <button className="btn btn-outline" style={{ padding: '6px 12px', fontSize: 14 }} onClick={handleNewFile}>
+                  <button className="btn btn-outline" style={{ padding: '6px 12px', fontSize: 14 }} onClick={() => handleNewFile()}>
                     <FilePlus size={16} style={{ marginRight: 6 }} /> 新增檔案
                   </button>
                   <button className="btn btn-outline" style={{ padding: '6px 12px', fontSize: 14 }} onClick={handleImport}>

@@ -108,36 +108,18 @@ const getLocalDateString = () => {
 };
 
 export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
-  const [movieName, setMovieName] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ezcast_save');
-      if (saved) return JSON.parse(saved).movieName || '電影名稱';
-    } catch (e) {}
-    return '電影名稱';
-  });
+  const [movieName, setMovieName] = useState('電影名稱');
   
-  const [actors, setActors] = useState<Actor[]>(() => {
-    try {
-      const saved = localStorage.getItem('ezcast_save');
-      if (saved) return JSON.parse(saved).actors || [];
-    } catch (e) {}
-    return [];
-  });
+  const [actors, setActors] = useState<Actor[]>([]);
   
-  const [scheduleDays, setScheduleDays] = useState<ScheduleDay[]>(() => {
-    try {
-      const saved = localStorage.getItem('ezcast_save');
-      if (saved && JSON.parse(saved).scheduleDays?.length > 0) return JSON.parse(saved).scheduleDays;
-    } catch (e) {}
-    return [
-      {
-        id: crypto.randomUUID(),
-        dayNumber: 1,
-        date: getLocalDateString(),
-        scenes: []
-      }
-    ];
-  });
+  const [scheduleDays, setScheduleDays] = useState<ScheduleDay[]>([
+    {
+      id: crypto.randomUUID(),
+      dayNumber: 1,
+      date: getLocalDateString(),
+      scenes: []
+    }
+  ]);
 
   const addActor = () => {
     const newActor: Actor = {
