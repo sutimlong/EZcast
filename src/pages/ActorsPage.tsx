@@ -19,10 +19,11 @@ const CostumeItem = ({ costume, actorId, handlePhotoUpload, handleDeleteCostume,
   };
   const [hovered, setHovered] = useState(false);
   const [nameValue, setNameValue] = useState(costume.name);
-
-  useEffect(() => {
+  const [prevName, setPrevName] = useState(costume.name);
+  if (costume.name !== prevName) {
+    setPrevName(costume.name);
     setNameValue(costume.name);
-  }, [costume.name]);
+  }
 
   return (
     <div ref={setNodeRef} style={{ flexShrink: 0, ...style }}>
@@ -65,7 +66,7 @@ const CostumeItem = ({ costume, actorId, handlePhotoUpload, handleDeleteCostume,
               <span style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>定妝照</span>
             </>
           )}
-          <input type="file" hidden accept="image/*,.heic,.heif" onChange={(e) => e.target.files && handlePhotoUpload(actorId, costume.id, e.target.files[0])} />
+          <input type="file" hidden accept="image/*,.heic,.heif" onChange={(e) => { if (e.target.files) handlePhotoUpload(actorId, costume.id, e.target.files[0]); e.target.value = ''; }} />
         </label>
         {hovered && costume.photoUrl && (
           <button
@@ -182,7 +183,7 @@ const SortableActor = ({ actor, index, handlePhotoUpload, handleAddCostume, hand
                   <span style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>標準照片</span>
                 </>
               )}
-              <input type="file" hidden accept="image/*,.heic,.heif" onChange={(e) => e.target.files && handlePhotoUpload(actor.id, null, e.target.files[0])} />
+              <input type="file" hidden accept="image/*,.heic,.heif" onChange={(e) => { if (e.target.files) handlePhotoUpload(actor.id, null, e.target.files[0]); e.target.value = ''; }} />
             </label>
             {hovered && actor.standardPhotoUrl && (
               <button
@@ -276,9 +277,19 @@ export default function ActorsPage() {
   const handleAddCostume = (actorId: string) => {
     const actor = actors.find(a => a.id === actorId);
     if (actor) {
-      const letter = String.fromCharCode(65 + actor.costumes.length); // A, B, C...
+      let index = 0;
+      let newName = '';
+      do {
+        if (index < 26) {
+          newName = `服裝${String.fromCharCode(65 + index)}`;
+        } else {
+          newName = `服裝${index + 1}`;
+        }
+        index++;
+      } while (actor.costumes.some(c => c.name === newName));
+      
       updateActor(actorId, {
-        costumes: [...actor.costumes, { id: crypto.randomUUID(), photoUrl: '', name: `服裝${letter}` }]
+        costumes: [...actor.costumes, { id: crypto.randomUUID(), photoUrl: '', name: newName }]
       });
     }
   };

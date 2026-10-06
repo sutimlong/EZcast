@@ -1,0 +1,294 @@
+/* ============ PDF export ============ */
+
+/* Off-screen while preparing (images still load & decode) */
+#print-root {
+  position: absolute;
+  left: -100000px;
+  top: 0;
+  width: 186mm;
+  pointer-events: none;
+}
+
+@media print {
+  html, body.is-printing {
+    background: #fff !important;
+    background-image: none !important;
+  }
+  body.is-printing > *:not(#print-root) {
+    display: none !important;
+  }
+  body.is-printing #print-root {
+    position: static;
+    left: auto;
+    width: auto;
+  }
+}
+
+/* ---------- Document (mirrors the app's design tokens) ---------- */
+.print-doc {
+  --pd-kai: 'DFKai-SB', 'BiauKai', '標楷體', 'Kaiti TC', 'STKaiti', serif;
+  --pd-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang TC', 'Microsoft JhengHei', 'Segoe UI', sans-serif;
+
+  --pd-text: #1a202c;          /* --text-primary   */
+  --pd-text-2: #4a5568;        /* --text-secondary */
+  --pd-accent: #3b82f6;        /* --primary-blue   */
+  --pd-accent-soft: rgba(59, 130, 246, 0.08);
+  --pd-cyan: #06b6d4;          /* --primary-cyan   */
+  --pd-cyan-soft: rgba(6, 182, 212, 0.06);
+  --pd-border: #e2e8f0;
+  --pd-divider: #f1f5f9;
+  --pd-surface: #f8fafc;
+
+  font-family: var(--pd-sans);
+  color: var(--pd-text);
+  background: #fff;
+  font-size: 9.5pt;
+  line-height: 1.4;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+/* A3 is √2 × A4: scale every em-based size so the layout looks identical */
+.print-doc.paper-A3 { font-size: 13.43pt; }
+
+/* Black & white: neutralise every accent + photos (text stays vector) */
+.print-doc.is-grayscale {
+  --pd-accent: #333;
+  --pd-accent-soft: #f1f1f1;
+  --pd-cyan: #555;
+  --pd-cyan-soft: #f6f6f6;
+}
+.print-doc.is-grayscale img { filter: grayscale(1); }
+
+/* ---------- Title ---------- */
+.pd-title {
+  font-family: var(--pd-sans);
+  font-size: 2.3em;
+  font-weight: 700;
+  text-align: center;
+  margin: 0 auto 1.4em;
+  padding-bottom: 0.25em;
+  width: fit-content;
+  border-bottom: 0.18em solid var(--pd-accent);
+  break-after: avoid;
+}
+
+/* ---------- Actor card ---------- */
+.pd-actor { margin-bottom: 2.2em; }
+
+.pd-actor-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4em 1em;
+  margin-bottom: 0.55em;
+  break-after: avoid;
+  break-inside: avoid;
+}
+.pd-actor-header h2 {
+  font-size: 1.6em;
+  font-weight: 700;
+  margin: 0;
+  padding-left: 0.45em;
+  border-left: 0.2em solid var(--pd-accent);
+  line-height: 1.1;
+}
+.pd-actor-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em 0.45em;
+}
+.pd-info-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45em;
+  padding: 0.2em 0.75em;
+  border-radius: 9999px;
+  background: var(--pd-surface);
+  border: 1px solid var(--pd-border);
+  font-size: 0.92em;
+  word-break: break-all;
+}
+.pd-info-pill b {
+  font-weight: 600;
+  color: var(--pd-accent);
+  font-size: 0.9em;
+}
+
+.pd-actor-box {
+  display: flex;
+  border: 1px solid var(--pd-border);
+  border-radius: 1.2em;        /* --radius-lg feel */
+  overflow: hidden;
+  background: #fff;
+}
+.pd-actor-left {
+  width: 19%;
+  flex-shrink: 0;
+  background: var(--pd-accent-soft);
+  border-right: 1px solid var(--pd-border);
+  padding: 1.3em 1em 1em;
+  break-inside: avoid;
+}
+.pd-actor-left figcaption { font-weight: 600; }
+.pd-actor-right {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4em 1.1em 0.3em;
+}
+
+.pd-costume-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  column-gap: 1.1em;
+  padding: 0.9em 0 0.5em;
+  break-inside: avoid;   /* never cut a row of photos across pages */
+}
+.pd-costume-row + .pd-costume-row { border-top: 1px dashed var(--pd-divider); }
+
+/* ---------- Photo (fixed 3:4 frame, never distorted) ---------- */
+.pd-photo { margin: 0; min-width: 0; break-inside: avoid; }
+.pd-photo-frame {
+  width: 100%;
+  max-width: 11.5em;            /* Limit size so 2 actors can fit on a landscape page */
+  margin: 0 auto;
+  aspect-ratio: 3 / 4;
+  border: 1px solid var(--pd-border);
+  border-radius: 0.8em;        /* --radius-sm feel */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--pd-surface);
+}
+.pd-photo-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;      /* full image, crop to fill frame */
+  display: block;
+  background: #fff;
+}
+.pd-photo-empty { color: #a0aec0; font-size: 0.85em; }
+.pd-photo figcaption {
+  text-align: center;
+  margin-top: 0.45em;
+  font-size: 0.95em;
+  color: var(--pd-text);
+  overflow-wrap: anywhere;
+}
+.pd-photo-pad { visibility: hidden; }
+
+/* ---------- Schedule ---------- */
+.pd-day { margin-top: 1.6em; }
+.pd-day-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  margin-bottom: 0.6em;
+  break-after: avoid;
+}
+.pd-day-header h2 {
+  font-size: 1.6em;
+  font-weight: 700;
+  color: var(--pd-accent);
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+.pd-date-pill {
+  padding: 0.25em 0.9em;
+  border-radius: 9999px;
+  border: 1px solid var(--pd-border);
+  background: #fff;
+  font-weight: 500;
+  font-size: 0.95em;
+}
+
+.pd-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--pd-border);
+  border-radius: 1em;
+  overflow: hidden;
+}
+.pd-table thead { display: table-header-group; } /* repeat header on each page */
+.pd-table th {
+  background: var(--pd-accent-soft);
+  color: var(--pd-text-2);
+  font-weight: 600;
+  font-size: 0.92em;
+  text-align: center;
+  padding: 0.65em 0.4em;
+  border-bottom: 1px solid var(--pd-border);
+}
+.pd-table td {
+  padding: 0.6em 0.6em;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+  border-top: 1px solid var(--pd-divider);
+}
+.pd-table th + th,
+.pd-table td + td { border-left: 1px solid var(--pd-divider); }
+.pd-table tbody tr:first-child td { border-top: none; }
+.pd-table tbody tr { break-inside: avoid; }
+.pd-table td.c { text-align: center; }
+.pd-table td.pre { white-space: pre-wrap; }
+.pd-empty-row td { height: 7em; }
+
+.pd-actor-list {
+  margin: 0;
+  padding-left: 1.4em;
+  color: var(--pd-text);
+}
+.pd-actor-list li {
+  margin-bottom: 0.2em;
+}
+
+/* ---------- Signature (end of last table) ---------- */
+.pd-signature {
+  margin: 0.7em 0 0;
+  text-align: right;
+  font-size: 0.75em;
+  color: #a0aec0;
+  break-before: avoid;
+}
+
+/* ---------- Export dialog ---------- */
+.pdf-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100001;
+  animation: pdfFade 0.18s ease-out;
+}
+.pdf-dialog {
+  width: 420px;
+  padding: 28px;
+  background: rgba(255, 255, 255, 0.92);
+  animation: pdfPop 0.22s cubic-bezier(0.25, 1, 0.5, 1);
+}
+.pdf-dialog h3 { margin: 0 0 20px; font-size: 20px; }
+.pdf-dialog-label { font-size: 13px; color: var(--text-secondary); margin: 0 0 8px; font-weight: 500; }
+.pdf-dialog-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.pdf-option {
+  border: 1.5px solid #e2e8f0;
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  font: inherit;
+}
+.pdf-option:hover { border-color: #93c5fd; }
+.pdf-option.active { border-color: var(--primary-blue); background: rgba(59, 130, 246, 0.07); box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+.pdf-option strong { display: block; font-size: 15px; }
+.pdf-option small { color: var(--text-secondary); font-size: 12px; }
+.pdf-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+@keyframes pdfFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pdfPop { from { opacity: 0; transform: scale(0.95) translateY(8px); } to { opacity: 1; transform: none; } }

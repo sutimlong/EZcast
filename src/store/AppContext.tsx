@@ -139,11 +139,33 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   };
 
   const updateActor = (id: string, updates: Partial<Actor>) => {
-    setActors(actors.map(a => a.id === id ? { ...a, ...updates } : a));
+    setActors(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    
+    if (updates.costumes) {
+      setScheduleDays(prevDays => prevDays.map(day => ({
+        ...day,
+        scenes: day.scenes.map(scene => ({
+          ...scene,
+          actors: scene.actors.filter(sa => {
+            if (sa.actorId === id) {
+              return updates.costumes!.some(c => c.id === sa.costumeId);
+            }
+            return true;
+          })
+        }))
+      })));
+    }
   };
 
   const removeActor = (id: string) => {
-    setActors(actors.filter(a => a.id !== id));
+    setActors(prev => prev.filter(a => a.id !== id));
+    setScheduleDays(prevDays => prevDays.map(day => ({
+      ...day,
+      scenes: day.scenes.map(scene => ({
+        ...scene,
+        actors: scene.actors.filter(sa => sa.actorId !== id)
+      }))
+    })));
   };
 
   const reorderActors = (activeId: string, overId: string) => {
@@ -155,13 +177,16 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   };
 
   const addScheduleDay = () => {
-    const newDay: ScheduleDay = {
-      id: crypto.randomUUID(),
-      dayNumber: scheduleDays.length + 1,
-      date: getLocalDateString(),
-      scenes: []
-    };
-    setScheduleDays([...scheduleDays, newDay]);
+    setScheduleDays(prev => {
+      const maxDay = prev.reduce((max, d) => Math.max(max, d.dayNumber), 0);
+      const newDay: ScheduleDay = {
+        id: crypto.randomUUID(),
+        dayNumber: maxDay + 1,
+        date: getLocalDateString(),
+        scenes: []
+      };
+      return [...prev, newDay];
+    });
   };
 
   const updateScheduleDay = (dayId: string, updates: Partial<ScheduleDay>) => {
@@ -308,4 +333,5 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   );
 };
 
+// eslint-disable-next-line react/only-export-components
 export const useAppContext = () => useContext(AppContext);

@@ -56,7 +56,7 @@ export const saveRecentProject = async (name: string, fileHandle: any): Promise<
       request.onsuccess = () => {
         const results = request.result as RecentProject[];
         let id: string = crypto.randomUUID();
-        const existing = results.find(r => r.name === name);
+        const existing = results.find(r => r.fileHandle && r.fileHandle.name === fileHandle.name);
         if (existing) {
           id = existing.id;
         }

@@ -163,7 +163,7 @@ const SortableScene = ({ scene, dayId, getActorLabel }: { scene: Scene, dayId: s
             onChange={e => updateScene(dayId, scene.id, { timeHour: e.target.value })} 
             style={{ width: 44, padding: '4px 0', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.5)', textAlign: 'center', appearance: 'none', WebkitAppearance: 'none', cursor: 'pointer' }}
           >
-            <option value="" disabled>hh</option>
+            <option value="">hh</option>
             {Array.from({ length: 24 }).map((_, i) => (
               <option key={i} value={String(i).padStart(2, '0')}>{String(i).padStart(2, '0')}</option>
             ))}
@@ -174,7 +174,7 @@ const SortableScene = ({ scene, dayId, getActorLabel }: { scene: Scene, dayId: s
             onChange={e => updateScene(dayId, scene.id, { timeMinute: e.target.value })} 
             style={{ width: 44, padding: '4px 0', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.5)', textAlign: 'center', appearance: 'none', WebkitAppearance: 'none', cursor: 'pointer' }}
           >
-            <option value="" disabled>mm</option>
+            <option value="">mm</option>
             {Array.from({ length: 60 }).map((_, i) => (
               <option key={i} value={String(i).padStart(2, '0')}>{String(i).padStart(2, '0')}</option>
             ))}
@@ -306,7 +306,7 @@ const SortableDay = ({ day, dayIndex, getWeekday, getActorLabel }: { day: Schedu
             onClick={() => {
               try {
                 dateRef.current?.showPicker();
-              } catch (e) {
+              } catch {
                 // Ignore if showPicker is not supported
               }
             }}
@@ -376,9 +376,10 @@ export default function SchedulePage() {
 
   const getWeekday = (dateString: string) => {
     if (!dateString) return '';
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return '';
-    return d.toLocaleDateString('zh-TW', { weekday: 'long' });
+    const [y, m, d] = dateString.split('-');
+    const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
+    if (isNaN(dateObj.getTime())) return '';
+    return dateObj.toLocaleDateString('zh-TW', { weekday: 'long' });
   };
 
   const isLeadingRole = (title: string | undefined) => {
