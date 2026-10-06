@@ -170,3 +170,20 @@
 - PDF 實際輸出：A3／A4 版面、灰階、頁碼「第N頁，共M頁」、標楷體字型、照片是否失真或疊圖
 - 拖曳排序（演員、日期、場次、定妝照）
 - File System Access API 在 Electron 44 的行為，以及 IndexedDB 還原 fileHandle 後的權限請求
+
+
+---
+
+**2026.10.07 錯誤修復說明**
+1. [專案檔儲存] localStorage 配額限制：在 App.tsx 中為 localStorage.setItem 加上了 try/catch，避免儲存因包含大量照片超出配額而拋出例外，確保 .cast 檔案能順利寫入本機。
+2. [專案檔匯入] 檔案驗證與錯誤提示：在匯入時加上了檔案格式（JSON Object 與必要的 Array 結構）檢查，如果不是正確的 .cast 檔會彈出警告對話框，不再造成畫面白屏。
+3. [服裝管理] 刪除再新增的預設名稱重複：修改了命名邏輯，現在會從 A 開始尋找第一個「不與現有服裝重複」的字母或編號，不會再產生重複名稱或怪異符號了。
+4. [資料一致性] 刪除演員或服裝後的殘留：在 AppContext 中的 updateActor 與 removeActor 實作了連動清除機制。現在刪除演員或服裝時，也會同步把 scheduleDays（拍攝場次）中相關的指派給乾淨地移除。
+5. [日期顯示] 時區偏移問題：將 new Date('YYYY-MM-DD') 的寫法改為手動剖析年月日的元件，再建立本地時區的 Date 物件，解決了在部分時區星期幾顯示提早一天的問題。
+6. [定妝照上傳] 無法重複選擇同檔名：在 onChange 處理完畢後，把 <input type="file"> 的 value 清空，讓使用者刪除照片後可以隨時重選同一張圖。
+7. [狀態更新] 非同步的覆蓋問題：全面將 AppContext 中的 setActors 等狀態更新改用 Functional Update（傳入 callback 取前次狀態 prev => ...），確保在使用 FileReader 讀取圖片的過程，使用者所做的其他編輯不會被舊狀態覆蓋。
+8. [時間欄位] 空白時間與 PDF 匯出：移除了 <select> 預設選項 disabled 屬性，現在可以把時間清空回未選狀態。另外 PDF 匯出時如果只有選擇「小時」，會顯示像是 09:-- 以避免整欄空白不見。
+9. [最近專案] 紀錄重複或覆蓋問題：將原先比對 movieName 的方式，改為比對 fileHandle.name (專案檔案的本機名稱)。這樣相同的檔名不會重複建立，不同名稱的專案也不會被錯誤覆蓋。
+10. [新增日期] DayNumber 計算錯誤：現在新增日期時，會找出目前的 max(dayNumber) + 1，取代原本用陣列長度 length + 1 的計算，刪除再新增就不會出現重複編號了。
+11. [Electron 安全性] 暴露 Node 核心：在 electron-main.cjs 關閉了 nodeIntegration 並開啟 contextIsolation，透過全新的 preload.cjs 安全地將 export-pdf 的 IPC 通道暴露給前端，防堵潛在的 XSS 任意程式碼執行風險。
+12. [程式品質] oxlint 警告：修正了 react(set-state-in-effect) 以及其餘 no-unused-vars 等警告，目前程式碼品質檢查均為綠燈！
