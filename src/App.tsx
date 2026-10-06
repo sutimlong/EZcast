@@ -219,7 +219,7 @@ function AppContent() {
           )}
         </div>
         <div style={{ position: 'absolute', bottom: 32, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13, opacity: 0.8 }}>
-          <div style={{ marginBottom: 4 }}>v1.2.1</div>
+          <div style={{ marginBottom: 4 }}>v1.2.2</div>
           <div>蘇廷融拍攝與你同在，2026</div>
         </div>
       </div>

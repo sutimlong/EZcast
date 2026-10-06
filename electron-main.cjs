@@ -56,7 +56,7 @@ ipcMain.handle('export-pdf', async (event, options = {}) => {
     pageSize,
     landscape: true,
     printBackground: true,
-    preferCSSPageSize: false,
+    preferCSSPageSize: true,
     displayHeaderFooter: true,
     headerTemplate: '<span></span>',
     footerTemplate,
