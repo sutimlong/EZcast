@@ -37,6 +37,7 @@ function AppContent() {
   const isActorsPage = location.pathname === '/actors';
 
   const [fileHandle, setFileHandle] = useState<any>(null);
+  const [openedFilePath, setOpenedFilePath] = useState<string | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
@@ -46,6 +47,45 @@ function AppContent() {
       getRecentProjects().then(setRecentProjects);
     }
   }, [hasStarted]);
+
+  // 解析 .cast 內容並載入到畫面上。
+  const loadCastData = (json: string, path: string | null) => {
+    try {
+      const data = JSON.parse(json);
+      if (!data || typeof data !== 'object' || !Array.isArray(data.actors) || !Array.isArray(data.scheduleDays)) {
+        alert('檔案格式錯誤，匯入失敗。');
+        return;
+      }
+      setMovieName(data.movieName || '');
+      setActors(data.actors);
+      setScheduleDays(data.scheduleDays);
+      setFileHandle(null);
+      setOpenedFilePath(path);
+      setHasStarted(true);
+    } catch (e) {
+      console.error(e);
+      alert('匯入失敗，請確認檔案格式是否正確。');
+    }
+  };
+
+  // 支援在 Finder 雙擊 .cast 檔案直接開啟：
+  // 1) 掛載後通知 main process 已就緒，由 main 推送「待開啟的檔案」。
+  // 2) 之後若 App 已在執行中，雙擊 .cast 會透過 open-cast-file 事件送來。
+  useEffect(() => {
+    const api = (window as any).electronAPI;
+    if (!api) return;
+
+    api.onOpenCastFile((payload: any) => {
+      if (payload && typeof payload.content === 'string') {
+        loadCastData(payload.content, payload.filePath || null);
+      } else if (payload && payload.error) {
+        alert(`開啟檔案失敗：${payload.error}`);
+      }
+    });
+
+    api.invoke('renderer-ready').catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNewFile = (forceNew = false) => {
     if (forceNew || window.confirm('確定要建立新檔案嗎？這將會清除當前畫面上所有未儲存的資料。')) {
@@ -64,6 +104,7 @@ function AppContent() {
         scenes: []
       }]);
       setFileHandle(null);
+      setOpenedFilePath(null);
       localStorage.removeItem('ezcast_save');
     }
   };
@@ -80,6 +121,7 @@ function AppContent() {
       await writable.write(jsonString);
       await writable.close();
       setFileHandle(handle);
+      setOpenedFilePath(null);
       await saveRecentProject(movieName, handle);
       alert('匯出成功！');
     } catch (e) {
@@ -102,7 +144,23 @@ function AppContent() {
       console.warn('LocalStorage backup failed (quota exceeded).');
     }
 
-    if (fileHandle) {
+    if (openedFilePath) {
+      // 從 Finder 雙擊開啟的檔案：直接寫回原路徑。
+      try {
+        const result = await (window as any).electronAPI?.invoke('save-cast-file', {
+          filePath: openedFilePath,
+          content: jsonString
+        });
+        if (result?.ok) {
+          alert('儲存成功！已直接寫入原檔案。');
+        } else {
+          alert(`儲存失敗：${result?.error || '未知錯誤'}`);
+        }
+      } catch (e) {
+        console.error(e);
+        alert('儲存失敗，請嘗試使用「匯出」另存新檔。');
+      }
+    } else if (fileHandle) {
       try {
         const writable = await fileHandle.createWritable();
         await writable.write(jsonString);
@@ -137,6 +195,7 @@ function AppContent() {
       setActors(data.actors);
       setScheduleDays(data.scheduleDays);
       setFileHandle(handle);
+      setOpenedFilePath(null);
       await saveRecentProject(data.movieName, handle);
       alert('匯入成功！後續點擊「儲存」將直接寫入此檔案。');
       return true;
@@ -219,7 +278,7 @@ function AppContent() {
           )}
         </div>
         <div style={{ position: 'absolute', bottom: 32, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13, opacity: 0.8 }}>
-          <div style={{ marginBottom: 4 }}>v1.2.2</div>
+          <div style={{ marginBottom: 4 }}>v1.3.0</div>
           <div>蘇廷融拍攝與你同在，2026</div>
         </div>
       </div>
@@ -228,7 +287,7 @@ function AppContent() {
 
   return (
     <div className="app-container" style={{ paddingTop: 38 }}>
-      <TitleBar fileName={fileHandle?.name || ''} />
+      <TitleBar fileName={fileHandle?.name || (openedFilePath ? openedFilePath.split('/').pop() || '' : '')} />
       <PdfExportDialog
         open={pdfDialogOpen}
         onClose={() => setPdfDialogOpen(false)}

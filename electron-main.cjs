@@ -3,8 +3,40 @@ const path = require('path');
 const fs = require('fs/promises');
 
 let mainWindow;
+let pendingOpenFilePath = null;
+let rendererReady = false;
+
+// 將 .cast 檔案內容送給 renderer，讓其載入專案。
+function openCastFileInWindow(win, filePath) {
+  fs.readFile(filePath, 'utf8')
+    .then((content) => {
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('open-cast-file', { filePath, content });
+      }
+    })
+    .catch((err) => {
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('open-cast-file', {
+          filePath,
+          content: null,
+          error: String((err && err.message) || err)
+        });
+      }
+    });
+}
+
+// Finder 雙擊 .cast 開啟本 App 時（無論是冷啟動或已在執行中）。
+function handleOpenFile(filePath) {
+  if (!filePath || !/\.cast$/i.test(filePath)) return;
+  if (rendererReady && mainWindow && !mainWindow.isDestroyed()) {
+    openCastFileInWindow(mainWindow, filePath);
+  } else {
+    pendingOpenFilePath = filePath;
+  }
+}
 
 function createWindow() {
+  rendererReady = false; // 新視窗的 renderer 需重新回報就緒。
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -72,8 +104,44 @@ ipcMain.handle('export-pdf', async (event, options = {}) => {
   return { canceled: false, filePath };
 });
 
+// Renderer 掛載完成後回報，此時才把「待開啟的 .cast」推送過去，
+// 避免在 renderer 尚未訂閱事件時錯過檔案。
+ipcMain.handle('renderer-ready', () => {
+  rendererReady = true;
+  if (pendingOpenFilePath) {
+    const filePath = pendingOpenFilePath;
+    pendingOpenFilePath = null;
+    openCastFileInWindow(mainWindow, filePath);
+  }
+  return true;
+});
+
+// 將目前專案直接寫回「從 Finder 雙擊開啟」的那個 .cast 檔案。
+ipcMain.handle('save-cast-file', async (event, options = {}) => {
+  const { filePath, content } = options;
+  if (!filePath || typeof content !== 'string') {
+    return { ok: false, error: '參數不正確' };
+  }
+  try {
+    await fs.writeFile(filePath, content, 'utf8');
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String((err && err.message) || err) };
+  }
+});
+
+// Finder 雙擊 .cast 開啟 App。
+app.on('open-file', (event, filePath) => {
+  event.preventDefault();
+  handleOpenFile(filePath);
+});
+
 app.whenReady().then(() => {
   createWindow();
+
+  // macOS 冷啟動時，雙擊的檔案也可能只出現在 argv 中（不一定觸發 open-file）。
+  const argvFile = process.argv.find((arg) => /\.cast$/i.test(arg));
+  if (argvFile) handleOpenFile(argvFile);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
